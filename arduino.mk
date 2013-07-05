@@ -165,7 +165,7 @@ ARDUINODIR := $(firstword $(wildcard ~/opt/arduino /usr/share/arduino \
 	/Applications/Arduino.app/Contents/Resources/Java \
 	$(HOME)/Applications/Arduino.app/Contents/Resources/Java))
 endif
-ifeq "$(wildcard $(ARDUINODIR)/hardware/arduino/boards.txt)" ""
+ifeq "$(wildcard $(ARDUINODIR)/hardware/arduino/avr/boards.txt)" ""
 $(error ARDUINODIR is not set correctly; arduino software not found)
 endif
 
@@ -177,7 +177,7 @@ AVRTOOLSPATH ?= $(subst :, , $(PATH)) $(ARDUINODIR)/hardware/tools \
 	$(ARDUINODIR)/hardware/tools/avr/bin
 
 # default path to find libraries
-LIBRARYPATH ?= libraries libs $(SKETCHBOOKDIR)/libraries $(ARDUINODIR)/libraries
+LIBRARYPATH ?= libraries libs $(SKETCHBOOKDIR)/libraries $(ARDUINODIR)/hardware/arduino/avr/libraries
 
 # default serial device to a poor guess (something that might be an arduino)
 SERIALDEVGUESS := 0
@@ -197,7 +197,7 @@ endif
 endif
 
 # obtain board parameters from the arduino boards.txt file
-BOARDSFILE := $(ARDUINODIR)/hardware/arduino/boards.txt
+BOARDSFILE := $(ARDUINODIR)/hardware/arduino/avr/boards.txt
 readboardsparam = $(shell sed -ne "s/$(BOARD).$(1)=\(.*\)/\1/p" $(BOARDSFILE))
 BOARD_BUILD_MCU := $(call readboardsparam,build.mcu)
 BOARD_BUILD_FCPU := $(call readboardsparam,build.f_cpu)
@@ -262,7 +262,7 @@ AVRDUDE := $(call findsoftware,avrdude)
 AVRSIZE := $(call findsoftware,avr-size)
 
 # directories
-ARDUINOCOREDIR := $(ARDUINODIR)/hardware/arduino/cores/arduino
+ARDUINOCOREDIR := $(ARDUINODIR)/hardware/arduino/avr/cores/arduino
 LIBRARYDIRS := $(foreach lib, $(LIBRARIES), \
 	$(firstword $(wildcard $(addsuffix /$(lib), $(LIBRARYPATH)))))
 LIBRARYDIRS += $(addsuffix /utility, $(LIBRARYDIRS))
@@ -275,7 +275,7 @@ ARDUINOLIB := .lib/arduino.a
 ARDUINOLIBOBJS := $(foreach dir, $(ARDUINOCOREDIR) $(LIBRARYDIRS), \
 	$(patsubst %, .lib/%.o, $(wildcard $(addprefix $(dir)/, *.c *.cpp))))
 BOOTLOADERHEX := $(addprefix \
-	$(ARDUINODIR)/hardware/arduino/bootloaders/$(BOARD_BOOTLOADER_PATH)/, \
+	$(ARDUINODIR)/hardware/arduino/avr/bootloaders/$(BOARD_BOOTLOADER_PATH)/, \
 	$(BOARD_BOOTLOADER_FILE))
 
 # avrdude confifuration
@@ -302,7 +302,7 @@ CPPFLAGS += -mmcu=$(BOARD_BUILD_MCU)
 CPPFLAGS += -DF_CPU=$(BOARD_BUILD_FCPU) -DARDUINO=$(ARDUINOCONST)
 CPPFLAGS += -DUSB_VID=$(BOARD_USB_VID) -DUSB_PID=$(BOARD_USB_PID)
 CPPFLAGS += -I. -Iutil -Iutility -I $(ARDUINOCOREDIR)
-CPPFLAGS += -I $(ARDUINODIR)/hardware/arduino/variants/$(BOARD_BUILD_VARIANT)/
+CPPFLAGS += -I $(ARDUINODIR)/hardware/arduino/avr/variants/$(BOARD_BUILD_VARIANT)/
 CPPFLAGS += $(addprefix -I , $(LIBRARYDIRS))
 CPPDEPFLAGS = -MMD -MP -MF .dep/$<.dep
 CPPINOFLAGS := -x c++ -include $(ARDUINOCOREDIR)/Arduino.h
@@ -310,7 +310,7 @@ AVRDUDEFLAGS := $(addprefix -C , $(AVRDUDECONF)) -DV
 AVRDUDEFLAGS += -p $(BOARD_BUILD_MCU) -P $(SERIALDEV)
 AVRDUDEFLAGS += -c $(BOARD_UPLOAD_PROTOCOL) -b $(BOARD_UPLOAD_SPEED)
 LINKFLAGS := -Os -Wl,--gc-sections
-LINKFLAGS += -ffunction-sections
+LINKFLAGS += -ffunction-sections -mmcu=$(BOARD_BUILD_MCU)
 
 # figure out which arg to use with stty (for OS X, GNU and busybox stty)
 #STTYFARG := $(shell stty --help 2>&1 | \

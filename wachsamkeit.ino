@@ -8,29 +8,32 @@
 
 // id
 #define ID "WACHSAMKEIT"
-#define VERSION 27062013
+#define VERSION 05072013
 #define DEBUG 1
 
 // includes
 #include <avr/eeprom.h>
-
 #include <avr/pgmspace.h>
 #include <avr/power.h>
 #include "Arduino.h"
+#include "Wire.h"
 
 // 3rd party includes
 #include <Streaming.h>
 #include <EEPROM.h>
 #include <EEPROMAnything.h>
 #include <movingAvg.h>
-//#include <Button.h>
+#include <DS1307RTC.h>
+#include <Time.h>
+
+//#include <Button.h>#include <DS1307RTC.h>
 
 #if DEBUG
 #include <SoftwareSerial.h>
 #define DEBUG_RX 11
 #define DEBUG_TX 12
 #define DEBUG_SPEED 57600
-#define DEBUG_INTERVAL 300
+#define DEBUG_INTERVAL 333
 #endif
 
 // hardware
@@ -96,6 +99,7 @@ setup()
     pinMode(DEBUG_RX, INPUT);
     pinMode(DEBUG_TX, OUTPUT);
     debugSerial.begin(DEBUG_SPEED);
+    delay(10);
     // init terminal, clear screen, disable cursor
     debugSerial << "\x1b\x63" << "\x1b[2J" << "\x1b[?25l";
     // output some basic info
@@ -121,6 +125,17 @@ setup()
 extern void __attribute__((noreturn))
 loop()
 {
+  tmElements_t tm;
+  if (RTC.read(tm)) {
+    debugSerial << tm.Hour << ":" << tm.Minute << "." << tm.Second << " " << tm.Day << "." << tm.Month << "." << tmYearToCalendar(tm.Year) << endl;
+  } else {
+    if (RTC.chipPresent()) {
+        debugSerial << "RTC:STOPPED" << endl;
+    } else {
+        debugSerial << "RTC:FAIL" << endl;
+    }
+  delay(500);
+  }
 #if DEBUG
     if ((millis() - debugTime) > DEBUG_INTERVAL)
     {
