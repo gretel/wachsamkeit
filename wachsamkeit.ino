@@ -8,7 +8,7 @@
 
 // id
 #define ID "WACHSAMKEIT"
-#define VERSION 05072013
+#define VERSION 06072013
 #define DEBUG 1
 
 // includes
@@ -25,8 +25,10 @@
 #include <movingAvg.h>
 #include <DS1307RTC.h>
 #include <Time.h>
+#include <DHT.h>
+#include <toneAC.h>
 
-//#include <Button.h>#include <DS1307RTC.h>
+//#include <Button.h>
 
 #if DEBUG
 #include <SoftwareSerial.h>
@@ -38,6 +40,12 @@
 
 // hardware
 #define BOARD_LED 13
+#define CUR_PIN A2
+#define DHT_PIN A1
+#define GAS_PIN A0
+#define PIR_PIN 5
+
+DHT dht;
 
 struct config_t
 {
@@ -88,7 +96,7 @@ extern void __attribute__((noreturn))
 setup()
 {
     // disable unused
-//    power_spi_disable();
+//    power_spi_disable();PI
 //    power_twi_disable();
 
     // begin of setup() - enable board led
@@ -118,7 +126,16 @@ setup()
     debugSerial << "CONFIG:READ:" << config.version << endl;
     debugTime = millis() + DEBUG_INTERVAL;
 #endif
-    delay(150);
+
+    debugSerial << "DHT:INIT:" << DHT_PIN << endl;
+    dht.setup(DHT_PIN);
+
+    pinMode(PIR_PIN, INPUT);
+
+    toneAC(600, 4, 75);
+    toneAC(400, 6, 75);
+    toneAC(200, 8, 125);
+
     digitalWrite(BOARD_LED, LOW);
 }
 
@@ -136,11 +153,40 @@ loop()
     }
   delay(500);
   }
+
+  // MQ-2
+  int sensorValue = analogRead(GAS_PIN);
+  float vol = (float) sensorValue / 1024 * 5.0;
+  debugSerial << "GAS:" << vol << endl;
+
+  // DHT-11
+  delay(dht.getMinimumSamplingPeriod());
+  debugSerial << "HMD:" << dht.getStatusString() << " " << dht.getHumidity() << " " << dht.getTemperature() << endl;
+
+  // CS
+  float amplitude_current = (float) (analogRead(CUR_PIN) - 512) / 1024 * 5 / 185 * 1000000;
+  float effective_value = amplitude_current / 1.414;
+  debugSerial << "CUR:" << effective_value << endl;
+
+  // PIR
+  uint8_t move = digitalRead(PIR_PIN);
+  debugSerial << "PIR:" << move << endl;
+  if(move == LOW)
+  {
+    for(uint8_t c = 0; c < 10; c++)
+    {
+      toneAC(2000, 10, 50);
+      toneAC(4000, 10, 50);
+      toneAC(6000, 10, 100);
+    }
+  }
+
 #if DEBUG
     if ((millis() - debugTime) > DEBUG_INTERVAL)
     {
         printDiag();
         debugTime = millis();
+        toneAC(30, 1, 1, false);
     }
     loopCycle = micros();
 #endif
